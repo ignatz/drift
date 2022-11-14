@@ -10,6 +10,7 @@ dependencies:
   drift: ^2.0.0
   postgres: ^2.4.3
   meta: ^1.8.0
+  convert: ^3.1.1
 
 dev_dependencies:
   lints: ^2.0.0

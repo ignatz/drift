@@ -1,3 +1,6 @@
+import 'dart:typed_data';
+
+import 'package:convert/convert.dart';
 import 'package:collection/collection.dart';
 import 'package:drift/backends.dart';
 import 'package:postgres/postgres.dart';
@@ -123,6 +126,8 @@ class _PgDelegate extends DatabaseDelegate {
   Object? _convertValue(Object? value) {
     if (value is BigInt) {
       return value.toInt();
+    } else if (value is Uint8List) {
+      return '\\x${hex.encode(value)}';
     }
     return value;
   }
