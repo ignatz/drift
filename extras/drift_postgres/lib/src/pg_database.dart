@@ -6,8 +6,8 @@ import 'package:postgres/postgres.dart';
 class PgDatabase extends DelegatedDatabase {
   /// Creates a drift database implementation from a postgres database
   /// [connection].
-  PgDatabase(PostgreSQLConnection connection, {bool logStatements = false})
-      : super(_PgDelegate(connection, connection),
+  PgDatabase(PostgreSQLExecutionContext connection, {bool logStatements = false})
+      : super(_PgDelegate(connection),
             isSequential: true, logStatements: logStatements);
 
   @override
@@ -15,14 +15,11 @@ class PgDatabase extends DelegatedDatabase {
 }
 
 class _PgDelegate extends DatabaseDelegate {
-  final PostgreSQLConnection _db;
   final PostgreSQLExecutionContext _ec;
 
-  _PgDelegate(this._db, this._ec) : closeUnderlyingWhenClosed = false;
+  _PgDelegate(this._ec);
 
   bool _isOpen = false;
-
-  final bool closeUnderlyingWhenClosed;
 
   @override
   TransactionDelegate get transactionDelegate => const NoTransactionDelegate();
@@ -35,9 +32,11 @@ class _PgDelegate extends DatabaseDelegate {
 
   @override
   Future<void> open(QueryExecutorUser user) async {
-    final pgVersionDelegate = _PgVersionDelegate(_db);
+    final pgVersionDelegate = _PgVersionDelegate(_ec);
 
-    await _db.open();
+    if (_ec is PostgreSQLConnection) {
+      await (_ec as PostgreSQLConnection).open();
+    }
     await pgVersionDelegate.init();
 
     versionDelegate = pgVersionDelegate;
@@ -45,8 +44,11 @@ class _PgDelegate extends DatabaseDelegate {
   }
 
   Future _ensureOpen() async {
-    if (_db.isClosed) {
-      await _db.open();
+    if (_ec is PostgreSQLConnection) {
+      final db = _ec as PostgreSQLConnection;
+      if (db.isClosed) {
+        await db.open();
+      }
     }
   }
 
@@ -113,9 +115,7 @@ class _PgDelegate extends DatabaseDelegate {
 
   @override
   Future<void> close() async {
-    if (closeUnderlyingWhenClosed) {
-      await _db.close();
-    }
+    // This delegate does not handle the connection lifecycle.
   }
 
   Object? _convertValue(Object? value) {
@@ -136,7 +136,7 @@ class _PgDelegate extends DatabaseDelegate {
 }
 
 class _PgVersionDelegate extends DynamicVersionDelegate {
-  final PostgreSQLConnection database;
+  final PostgreSQLExecutionContext database;
 
   _PgVersionDelegate(this.database);
 
